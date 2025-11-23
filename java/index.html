@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Correction Vocale Intelligente (Orthographe + Sens)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; padding: 20px;
+    }
+    .container { background: white; border-radius: 20px; padding: 40px; max-width: 1000px; margin: 0 auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    h1 { color: #667eea; text-align: center; margin-bottom: 30px; font-size: 28px; }
+    .gender-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:1000; animation:fadeIn .3s ease; }
+    .gender-modal.hidden { display: none; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .gender-modal-content { background:white; padding:50px; border-radius:20px; text-align:center; max-width:500px; animation:slideUp .4s ease; box-shadow:0 30px 80px rgba(0,0,0,0.5); }
+    @keyframes slideUp { from{transform:translateY(50px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .gender-modal-content h2 { color:#667eea; margin-bottom:20px; font-size:26px; }
+    .gender-buttons { display:flex; gap:20px; justify-content:center; }
+    .gender-btn-large { padding:30px 40px; border:3px solid #667eea; background:white; color:#667eea; border-radius:20px; cursor:pointer; font-size:20px; font-weight:700; transition:all .3s ease; min-width:150px; }
+    .gender-btn-large:hover { background:#667eea; color:white; transform:translateY(-5px) scale(1.05); box-shadow:0 10px 30px rgba(102,126,234,.4); }
+    .control-section { text-align:center; margin:30px 0; }
+    #start { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; border:none; padding:18px 50px; border-radius:50px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 8px 20px rgba(102,126,234,.4); transition:all .3s ease; }
+    #start:hover { transform:translateY(-3px); box-shadow:0 12px 25px rgba(102,126,234,.5); }
+    #start.listening { background:#ef4444; animation:pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+    .text-section { margin:25px 0; padding:20px; background:#f8f9fa; border-radius:12px; border-left:4px solid #667eea; }
+    .text-section h3 { color:#333; margin-bottom:10px; font-size:14px; text-transform:uppercase; letter-spacing:1px; }
+    .text-section p { color:#555; font-size:16px; line-height:1.6; min-height:24px; }
+    .text-section.corrected { border-left-color:#10b981; background:#f0fdf4; }
+    .text-section.gender { border-left-color:#f59e0b; background:#fffbeb; display:flex; justify-content:space-between; align-items:center; }
+    .change-gender-btn { padding:8px 20px; background:#f59e0b; color:white; border:none; border-radius:20px; cursor:pointer; font-size:14px; font-weight:600; transition:all .3s ease; }
+    .change-gender-btn:hover { background:#d97706; transform:translateY(-2px); }
+    .status { text-align:center; color:#666; font-size:14px; margin-top:20px; font-style:italic; }
+    .phrases-section { margin-top:40px; padding-top:30px; border-top:2px solid #e5e7eb; }
+    .phrases-section h2 { color:#667eea; margin-bottom:20px; font-size:22px; }
+    .phrase-item { display:flex; justify-content:space-between; align-items:center; padding:15px; margin:10px 0; background:#f8f9fa; border-radius:10px; border-left:4px solid #667eea; transition:all .3s ease; }
+    .phrase-item:hover { background:#e5e7eb; transform:translateX(5px); }
+    .phrase-text { flex:1; color:#555; font-size:15px; }
+    .phrase-error { color:#ef4444; font-weight:600; margin-right:10px; }
+    .delete-btn { padding:5px 15px; background:#ef4444; color:white; border:none; border-radius:5px; cursor:pointer; font-size:12px; transition:all .3s ease; }
+    .add-phrase-section { margin:20px 0; padding:20px; background:#f0fdf4; border-radius:12px; }
+    .add-phrase-section h3 { color:#10b981; margin-bottom:15px; font-size:16px; }
+    .input-group { display:flex; gap:10px; margin-bottom:10px; }
+    .input-group input { flex:1; padding:12px; border:2px solid #d1d5db; border-radius:8px; font-size:14px; }
+    .input-group input:focus { outline:none; border-color:#667eea; }
+    .add-btn { padding:12px 25px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; transition:all .3s ease; }
+    .add-btn:hover { background:#059669; transform:translateY(-2px); }
+    .stats { text-align:center; margin-top:20px; color:#666; font-size:14px; }
+    .correction-highlight { background:#fef3c7; padding:15px; border-radius:8px; margin-top:10px; font-size:14px; color:#92400e; }
+    .export-section { margin-top:20px; text-align:center; padding:15px; background:#eff6ff; border-radius:8px; }
+    .export-btn, .import-btn { padding:10px 20px; margin:5px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; transition:all .3s ease; }
+    .export-btn:hover, .import-btn:hover { background:#2563eb; }
+    #importFile { display:none; }
+    .toggle-row { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:10px; }
+    .toggle-row input[type="checkbox"] { width:18px; height:18px; }
+  </style>
+</head>
+<body>
+  <div class="gender-modal" id="genderModal">
+    <div class="gender-modal-content">
+      <h2>👋 Bienvenue !</h2>
+      <p>Pour une meilleure expérience, sélectionnez votre genre (pour adapter la prononciation) :</p>
+      <div class="gender-buttons">
+        <button class="gender-btn-large" data-gender="female"><span class="emoji">👧</span>Fille</button>
+        <button class="gender-btn-large" data-gender="male"><span class="emoji">👦</span>Garçon</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>🎙️ Correction Vocale Intelligente (orthographe + sens)</h1>
+
+    <div class="control-section">
+      <button id="start">🎤 Commencer à parler</button>
+      <p class="status" id="status">Prêt à écouter</p>
+      <div class="toggle-row">
+        <label><input type="checkbox" id="semanticToggle" checked> Corriger aussi le sens (heuristiques)</label>
+      </div>
+    </div>
+
+    <div class="text-section">
+      <h3>📝 Texte reconnu :</h3>
+      <p id="recognized">...</p>
+    </div>
+
+    <div class="text-section corrected">
+      <h3>✅ Texte corrigé :</h3>
+      <p id="corrected">...</p>
+      <div class="correction-highlight" id="corrections" style="display:none"></div>
+    </div>
+
+    <div class="text-section gender">
+      <div>
+        <h3>🎭 Genre sélectionné :</h3>
+        <p id="gender">...</p>
+      </div>
+      <button class="change-gender-btn" id="changeGenderBtn">Changer</button>
+    </div>
+
+    <div class="add-phrase-section">
+      <h3>➕ Règles personnalisées</h3>
+      <p style="color:#666; font-size:13px; margin-bottom:15px;">Ajoute des phrases incorrectes et leur correction (appliquées en priorité).</p>
+      <div class="input-group">
+        <input type="text" id="incorrectPhrase" placeholder="Phrase incorrecte (ex: 'moi heureux')">
+        <input type="text" id="correctPhrase" placeholder="Correction (ex: 'je suis heureux')">
+        <button class="add-btn" id="addPhraseBtn">Ajouter</button>
+      </div>
+
+      <div class="export-section">
+        <button class="export-btn" id="exportBtn">📥 Exporter les règles</button>
+        <button class="import-btn" id="importBtn">📤 Importer les règles</button>
+        <input type="file" id="importFile" accept=".json">
+      </div>
+
+      <p class="stats" id="stats">0 règles de correction personnalisées</p>
+    </div>
+
+    <div class="phrases-section">
+      <h2>📚 Règles actives (<span id="totalRules">0</span>)</h2>
+      <div id="phrasesList"></div>
+    </div>
+  </div>
+
+  <script>
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Votre navigateur ne supporte pas la reconnaissance vocale ! Utilise Chrome/Edge.");
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'fr-FR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    let isListening = false;
+    let availableVoices = [];
+    let userGender = null;
+
+    let corrections = {
+      "j'ai allé": "je suis allé", "j'ai venu": "je suis venu", "j'ai parti": "je suis parti",
+      "j'ai arrivé": "je suis arrivé", "j'ai resté": "je suis resté", "j'ai tombé": "je suis tombé",
+      "tu as allé": "tu es allé", "tu as venu": "tu es venu", "il a allé": "il est allé",
+      "elle a allé": "elle est allée", "je allé": "je suis allé", "je venu": "je suis venu",
+      "je mangé": "j'ai mangé", "jaime": "j'aime", "jai": "j'ai", "cest": "c'est",
+      "sa va": "ça va", "sa fait": "ça fait", "sa marche": "ça marche",
+      "a la maison": "à la maison", "a l'école": "à l'école", "ou est": "où est",
+      "la bas": "là-bas", "moi suis": "je suis", "comme même": "quand même", "par": "une",
+      "je content": "je suis content", "elle malade": "elle est malade", "moi prêt": "je suis prêt",
+      "papa fâché": "papa est fâché", "moi aller maison": "j'ai allé à la maison",
+      "il manger pomme": "il mange une pomme", "je courir vite": "je cours vitement",
+      "moi heureux": "je suis heureux", "veux pas dormir moi": "je ne veux pas dormir",
+      "papa voiture conduire": "papa conduit la voiture", "je veux pomme": "je veux une pomme",
+      "donne ballon": "donne moi une ballon", "manger banane": "je mange une banane",
+      "je bois une pomme": "je mange une pomme", "tabe": "table"
+    };
+
+    const savedCorrections = localStorage.getItem('customCorrections');
+    if (savedCorrections) {
+      try {
+        const customCorrections = JSON.parse(savedCorrections);
+        corrections = { ...corrections, ...customCorrections };
+      } catch (e) { console.error(e); }
+    }
+
+    const genderModal = document.getElementById('genderModal');
+    const genderButtons = document.querySelectorAll('.gender-btn-large');
+    const startBtn = document.getElementById('start');
+    const recognizedText = document.getElementById('recognized');
+    const correctedText = document.getElementById('corrected');
+    const genderText = document.getElementById('gender');
+    const statusText = document.getElementById('status');
+    const phrasesList = document.getElementById('phrasesList');
+    const incorrectInput = document.getElementById('incorrectPhrase');
+    const correctInput = document.getElementById('correctPhrase');
+    const addPhraseBtn = document.getElementById('addPhraseBtn');
+    const statsText = document.getElementById('stats');
+    const totalRulesText = document.getElementById('totalRules');
+    const changeGenderBtn = document.getElementById('changeGenderBtn');
+    const correctionsDisplay = document.getElementById('corrections');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFile = document.getElementById('importFile');
+    const semanticToggle = document.getElementById('semanticToggle');
+
+    function loadVoices(){ availableVoices = window.speechSynthesis.getVoices(); }
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    loadVoices();
+
+    const savedGender = localStorage.getItem('userGender');
+    if (savedGender) {
+      userGender = savedGender;
+      genderModal.classList.add('hidden');
+      updateGenderDisplay();
+    }
+
+    genderButtons.forEach(btn => btn.addEventListener('click', () => {
+      userGender = btn.dataset.gender;
+      localStorage.setItem('userGender', userGender);
+      genderModal.classList.add('hidden');
+      updateGenderDisplay();
+    }));
+
+    changeGenderBtn.addEventListener('click', () => genderModal.classList.remove('hidden'));
+
+    function updateGenderDisplay() {
+      genderText.textContent = userGender === 'female' ? '👧 Fille' : '👦 Garçon';
+    }
+
+    const commonAdjectives = [
+      'heureux','heureuse','triste','fatigué','fatiguée','content','contente','en colère','gêné',
+      'malade','satisfait','pressé','calme','excité','nerveux','fâché','inquiet','inquiète',
+      'doux','douce','gentil','gentille','beau','belle','nouveau','nouvelle','vieux','vieille',
+      'fou','folle','blanc','blanche','franc','franche','sec','sèche','frais','fraîche',
+      'bas','basse','gros','grosse','épais','épaisse','attentif','attentive','actif','active',
+      'sportif','sportive','créatif','créative','curieux','curieuse','sérieux','sérieuse',
+      'amoureux','amoureuse','jaloux','jalouse','courageux','courageuse','paresseux','paresseuse',
+      'satisfaite','pressée','excitée','nerveuse','fâchée','gênée'
+    ];
+
+    const adjectiveGenderMap = {
+      'heureux': 'heureuse', 'content': 'contente', 'fatigué': 'fatiguée', 'fâché': 'fâchée',
+      'nerveux': 'nerveuse', 'satisfait': 'satisfaite', 'pressé': 'pressée', 'gêné': 'gênée',
+      'excité': 'excitée', 'prêt': 'prête', 'inquiet': 'inquiète', 'doux': 'douce',
+      'gentil': 'gentille', 'beau': 'belle', 'nouveau': 'nouvelle', 'vieux': 'vieille',
+      'fou': 'folle', 'blanc': 'blanche', 'franc': 'franche', 'sec': 'sèche',
+      'frais': 'fraîche', 'bas': 'basse', 'gros': 'grosse', 'épais': 'épaisse',
+      'attentif': 'attentive', 'actif': 'active', 'sportif': 'sportive', 'créatif': 'créative',
+      'curieux': 'curieuse', 'sérieux': 'sérieuse', 'amoureux': 'amoureuse', 'jaloux': 'jalouse',
+      'courageux': 'courageuse', 'paresseux': 'paresseuse'
+    };
+
+    function fullCorrect(phrase, applySemantic = true) {
+      const logs = [];
+      if (!phrase || typeof phrase !== 'string') return { corrected: '', logs: [] };
+      let working = phrase.trim().toLowerCase();
+
+      for (const [wrong, right] of Object.entries(corrections)) {
+        const esc = wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp('\\b' + esc + '\\b', 'gi');
+        if (regex.test(working)) {
+          working = working.replace(regex, right);
+          logs.push(`"${wrong}" → "${right}" (règle)`);
+        }
+      }
+
+      if (applySemantic) {
+        const semanticRes = semanticCorrect(working);
+        if (semanticRes.changed) {
+          working = semanticRes.text;
+          logs.push(...semanticRes.logs);
+        }
+      }
+
+      if (userGender === 'female') {
+        for (const [masc, fem] of Object.entries(adjectiveGenderMap)) {
+          const regex = new RegExp('\\b' + masc + '\\b', 'gi');
+          if (regex.test(working)) {
+            working = working.replace(regex, fem);
+            logs.push(`"${masc}" → "${fem}" (accord féminin)`);
+          }
+        }
+      }
+
+      working = working.charAt(0).toUpperCase() + working.slice(1);
+      return { corrected: working, logs };
+    }
+
+    function semanticCorrect(s) {
+      let text = s;
+      const logs = [];
+      let changed = false;
+
+      const regexMoiAdj = /^\s*moi\s+([a-zàâçéèêëîïôûùüÿæœ-]+)(.*)$/i;
+      const mMoi = text.match(regexMoiAdj);
+      if (mMoi) {
+        const first = mMoi[1].toLowerCase();
+        const rest = mMoi[2] ? mMoi[2].trim() : '';
+        const isKnownAdj = commonAdjectives.includes(first) || adjectiveGenderMap[first];
+        if (isKnownAdj || rest === '') {
+          text = `je suis ${first}` + (rest ? ' ' + rest : '');
+          logs.push(`"moi ${first}${rest ? ' ' + rest : ''}" → "je suis ${first}${rest ? ' ' + rest : ''}" (heuristique sujet+verbe)`);
+          changed = true;
+        }
+      }
+
+      const pronAdj = /^\s*(je|tu|il|elle|on|nous|vous|ils|elles)\s+([a-zàâçéèêëîïôûùüÿæœ-]+)(.*)$/i;
+      const mPron = text.match(pronAdj);
+      if (mPron) {
+        const pron = mPron[1].toLowerCase();
+        const second = mPron[2].toLowerCase();
+        const rest = mPron[3] ? mPron[3].trim() : '';
+        const isKnownAdj = commonAdjectives.includes(second) || adjectiveGenderMap[second] || Object.values(adjectiveGenderMap).includes(second);
+        if (isKnownAdj && !(new RegExp('\\b' + second + '\\b').test(' '+text))) {
+          let verb = 'est';
+          if (pron === 'je') verb = 'suis';
+          if (pron === 'tu') verb = 'es';
+          if (pron === 'nous') verb = 'sommes';
+          if (pron === 'vous') verb = 'êtes';
+          if (pron === 'ils' || pron === 'elles') verb = 'sont';
+          text = `${pron} ${verb} ${second}` + (rest ? ' ' + rest : '');
+          logs.push(`"${pron} ${second}${rest ? ' ' + rest : ''}" → "${pron} ${verb} ${second}${rest ? ' ' + rest : ''}" (ajout verbe être)`);
+          changed = true;
+        }
+      }
+
+      const regexJaiPar = /\b(j'ai|jai|je ai)\s+(par|pr|pa?r)\s+([a-zàâçéèêëîïôûùüÿæœ-]+)\b/gi;
+      if (regexJaiPar.test(text)) {
+        text = text.replace(regexJaiPar, "j'ai une $3");
+        logs.push(`"j'ai par X" → "j'ai une X" (heuristique article)`);
+        changed = true;
+      }
+
+      const regexJaiSingle = /^\s*(j'ai|jai|je ai)\s+([a-zàâçéèêëîïôûùüÿæœ-]+)\b(.*)$/i;
+      const mJai = text.match(regexJaiSingle);
+      if (mJai) {
+        const word = mJai[2];
+        const rest = mJai[3] ? mJai[3].trim() : '';
+        const verbBlacklist = ['allé','venu','mangé','parti','arrivé','tombé','resté','aimé','vu','pris'];
+        if (!verbBlacklist.includes(word) && word.length > 2) {
+          if (!/^(une|un|le|la|les|des|de|du|d'|l')\b/i.test(rest)) {
+            text = `j'ai une ${word}` + (rest ? ' ' + rest : '');
+            logs.push(`"j'ai ${word}${rest ? ' ' + rest : ''}" → "j'ai une ${word}${rest ? ' ' + rest : ''}" (insertion article)`);
+            changed = true;
+          }
+        }
+      }
+
+      return { text, logs, changed };
+    }
+
+    function speakText(text) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'fr-FR';
+      utter.rate = 0.95;
+      utter.pitch = userGender === 'female' ? 1.05 : 0.9;
+      if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
+      const frenchVoices = availableVoices.filter(v => v.lang && v.lang.startsWith('fr'));
+      if (frenchVoices.length > 0) utter.voice = frenchVoices[0];
+      window.speechSynthesis.speak(utter);
+    }
+
+    function onRecognized(text) {
+      recognizedText.textContent = text;
+      const applySemantic = semanticToggle.checked;
+      const result = fullCorrect(text, applySemantic);
+      correctedText.textContent = result.corrected;
+      if (result.logs && result.logs.length > 0) {
+        correctionsDisplay.style.display = 'block';
+        correctionsDisplay.innerHTML = `<strong>✅ Corrections / transformations :</strong><br>${result.logs.map(l => '- ' + l).join('<br>')}`;
+      } else {
+        correctionsDisplay.style.display = 'none';
+      }
+      statusText.textContent = '✅ Corrigé !';
+      setTimeout(() => speakText(result.corrected), 300);
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (!userGender) {
+        genderModal.classList.remove('hidden');
+        return;
+      }
+      if (!isListening) {
+        try {
+          recognition.start();
+          isListening = true;
+          startBtn.textContent = '🔴 En écoute...';
+          startBtn.classList.add('listening');
+          statusText.textContent = '🎤 Je vous écoute...';
+        } catch (e) { console.error(e); }
+      }
+    });
+
+    recognition.addEventListener('result', (event) => {
+      const text = event.results[0][0].transcript;
+      isListening = false;
+      startBtn.textContent = '🎤 Commencer à parler';
+      startBtn.classList.remove('listening');
+      recognition.stop();
+      onRecognized(text);
+    });
+
+    recognition.addEventListener('end', () => {
+      isListening = false;
+      startBtn.textContent = '🎤 Commencer à parler';
+      startBtn.classList.remove('listening');
+    });
+
+    recognition.addEventListener('error', (e) => {
+      console.error('Reconnaissance erreur', e);
+      isListening = false;
+      startBtn.textContent = '🎤 Commencer à parler';
+      startBtn.classList.remove('listening');
+      statusText.textContent = e.error === 'no-speech' ? '⚠️ Aucun son détecté' : `❌ Erreur: ${e.error}`;
+    });
+
+    function displayPhrases() {
+      phrasesList.innerHTML = '';
+      let count = 0;
+      for (const [wrong, right] of Object.entries(corrections)) {
+        count++;
+        const div = document.createElement('div');
+        div.className = 'phrase-item';
+        const wrongEscaped = wrong.replace(/'/g, "\\'");
+        div.innerHTML = `
+          <span class="phrase-text"><span class="phrase-error">"${wrong}"</span> → "${right}"</span>
+          <button class="delete-btn" onclick="deleteRule('${wrongEscaped}')">Supprimer</button>
+        `;
+        phrasesList.appendChild(div);
+      }
+      statsText.textContent = `${count} règles actives`;
+      totalRulesText.textContent = count;
+    }
+
+    window.deleteRule = function(wrong) {
+      if (confirm(`Supprimer "${wrong}" ?`)) {
+        delete corrections[wrong];
+        localStorage.setItem('customCorrections', JSON.stringify(corrections));
+        displayPhrases();
+      }
+    };
+
+    addPhraseBtn.addEventListener('click', () => {
+      const wrong = incorrectInput.value.trim().toLowerCase();
+      const right = correctInput.value.trim();
+      if (!wrong || !right) {
+        alert('Remplissez les deux champs.');
+        return;
+      }
+      corrections[wrong] = right;
+      localStorage.setItem('customCorrections', JSON.stringify(corrections));
+      incorrectInput.value = '';
+      correctInput.value = '';
+      displayPhrases();
+      alert(`Ajouté : "${wrong}" → "${right}"`);
+    });
+
+    exportBtn.addEventListener('click', () => {
+      const dataStr = JSON.stringify(corrections, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'regles-correction.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          corrections = { ...corrections, ...imported };
+          localStorage.setItem('customCorrections', JSON.stringify(corrections));
+          displayPhrases();
+          alert('Import réussi');
+        } catch (err) { alert('Erreur import'); }
+      };
+      reader.readAsText(file);
+    });
+
+    displayPhrases();
+  </script>
+</body>
+</html>

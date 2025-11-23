@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puzzle de Mots</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2em;
+        }
+
+        .score {
+            font-size: 1.5em;
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        .hint-box {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .hint-box p {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .progress {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .answer-zone {
+            min-height: 120px;
+            background: #f7f7f7;
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .answer-zone.empty {
+            color: #999;
+        }
+
+        .words-zone {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 30px;
+            min-height: 120px;
+        }
+
+        .word-btn {
+            padding: 12px 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .word-btn.available {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .word-btn.available:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .word-btn.used {
+            background: #ddd;
+            color: #999;
+            cursor: not-allowed;
+            opacity: 0.4;
+        }
+
+        .word-btn.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .word-btn.selected:hover {
+            transform: scale(1.05);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-check {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .btn-shuffle {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .word-btn {
+                padding: 10px 15px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧩 Puzzle de Mots</h1>
+            <div class="score">Score: <span id="score">0</span></div>
+        </div>
+
+        <div class="hint-box">
+            <p><strong>Mission:</strong> Remettez les mots dans le bon ordre pour former la phrase correcte</p>
+            <p class="progress">Puzzle <span id="current">1</span> / <span id="total">5</span></p>
+        </div>
+
+        <div class="answer-zone" id="answerZone">
+            <p class="empty">Cliquez sur les mots ci-dessous pour former la phrase</p>
+        </div>
+
+        <div class="words-zone" id="wordsZone"></div>
+
+        <div class="controls">
+            <button class="btn btn-check" id="checkBtn">✓ Vérifier</button>
+            <button class="btn btn-shuffle" id="shuffleBtn">🔀 Mélanger</button>
+            <button class="btn btn-reset" id="resetBtn">🔄 Recommencer</button>
+        </div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        const sentences = [
+            { 
+                sentence: 'Le chat mange une souris', 
+                words: ['Le', 'chat', 'mange', 'une', 'souris'],
+                display: ['Le', '🐱 chat', '🍽️ mange', 'une', '🐭 souris']
+            },
+            { 
+                sentence: 'Je vais a ecole', 
+                words: ['Je', 'vais', 'a', 'ecole'],
+                display: ['Je', '🚶 vais', 'a', '🏫 ecole']
+            },
+            { 
+                sentence: 'La programmation est passionnante', 
+                words: ['La', 'programmation', 'est', 'passionnante'],
+                display: ['La', '💻 programmation', 'est', '🤩 passionnante']
+            },
+            { 
+                sentence: 'Les oiseaux chantent dans les arbres', 
+                words: ['Les', 'oiseaux', 'chantent', 'dans', 'les', 'arbres'],
+                display: ['Les', '🐦 oiseaux', '🎵 chantent', 'dans', 'les', '🌳 arbres']
+            },
+            { 
+                sentence: 'Nous aimons apprendre de nouvelles choses', 
+                words: ['Nous', 'aimons', 'apprendre', 'de', 'nouvelles', 'choses'],
+                display: ['Nous', '❤️ aimons', '📚 apprendre', 'de', '✨ nouvelles', 'choses']
+            }
+        ];
+
+        let currentSentenceIndex = 0;
+        let shuffledWords = [];
+        let selectedWords = [];
+        let score = 0;
+
+        const scoreEl = document.getElementById('score');
+        const currentEl = document.getElementById('current');
+        const totalEl = document.getElementById('total');
+        const answerZone = document.getElementById('answerZone');
+        const wordsZone = document.getElementById('wordsZone');
+        const checkBtn = document.getElementById('checkBtn');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const messageEl = document.getElementById('message');
+
+        totalEl.textContent = sentences.length;
+
+        function shuffleSentence() {
+            const displayWords = sentences[currentSentenceIndex].display.slice();
+            const actualWords = sentences[currentSentenceIndex].words.slice();
+            
+            const combined = displayWords.map(function(display, i) {
+                return { display: display, actual: actualWords[i] };
+            });
+            
+            const shuffled = combined.sort(function() { return Math.random() - 0.5; });
+            
+            shuffledWords = shuffled;
+            selectedWords = [];
+            updateDisplay();
+            hideMessage();
+        }
+
+        function updateDisplay() {
+            currentEl.textContent = currentSentenceIndex + 1;
+            
+            if (selectedWords.length === 0) {
+                answerZone.innerHTML = '<p class="empty">Cliquez sur les mots ci-dessous pour former la phrase</p>';
+            } else {
+                answerZone.innerHTML = '';
+                selectedWords.forEach(function(item, idx) {
+                    const btn = document.createElement('button');
+                    btn.className = 'word-btn selected';
+                    btn.textContent = item.display;
+                    btn.onclick = function() { removeWord(idx); };
+                    answerZone.appendChild(btn);
+                });
+            }
+
+            wordsZone.innerHTML = '';
+            const usedIndices = selectedWords.map(function(w) { return w.index; });
+            
+            shuffledWords.forEach(function(item, index) {
+                const btn = document.createElement('button');
+                btn.className = 'word-btn ' + (usedIndices.includes(index) ? 'used' : 'available');
+                btn.textContent = item.display;
+                btn.disabled = usedIndices.includes(index);
+                btn.onclick = function() { selectWord(index); };
+                wordsZone.appendChild(btn);
+            });
+
+            checkBtn.disabled = selectedWords.length === 0;
+        }
+
+        function selectWord(index) {
+            if (selectedWords.length < sentences[currentSentenceIndex].words.length) {
+                selectedWords.push({ 
+                    display: shuffledWords[index].display, 
+                    actual: shuffledWords[index].actual,
+                    index: index 
+                });
+                updateDisplay();
+            }
+        }
+
+        function removeWord(idx) {
+            selectedWords.splice(idx, 1);
+            updateDisplay();
+        }
+
+        function checkAnswer() {
+            const answer = selectedWords.map(function(w) { return w.actual; }).join(' ');
+            const correct = answer === sentences[currentSentenceIndex].sentence;
+
+            if (correct) {
+                score += 10;
+                scoreEl.textContent = score;
+                showMessage('🎉 Bravo ! Phrase correcte !', 'success');
+                
+                setTimeout(function() {
+                    if (currentSentenceIndex < sentences.length - 1) {
+                        currentSentenceIndex++;
+                        shuffleSentence();
+                    } else {
+                        showMessage('🏆 Félicitations ! Vous avez terminé tous les puzzles !', 'success');
+                    }
+                }, 2000);
+            } else {
+                showMessage('❌ Essayez encore ! Ordre des mots incorrect.', 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            messageEl.textContent = text;
+            messageEl.className = 'message show ' + type;
+        }
+
+        function hideMessage() {
+            messageEl.className = 'message';
+        }
+
+        function resetGame() {
+            currentSentenceIndex = 0;
+            score = 0;
+            scoreEl.textContent = score;
+            shuffleSentence();
+        }
+
+        checkBtn.onclick = checkAnswer;
+        shuffleBtn.onclick = shuffleSentence;
+        resetBtn.onclick = resetGame;
+
+        shuffleSentence();
+    </script>
+</body>
+</html>
